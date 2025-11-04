@@ -116,7 +116,6 @@ const createChart = (data) => {
     f3EditTree.setEdit()
     // console.log(Object.getOwnPropertyNames(Object.getPrototypeOf(f3EditTree)).filter(prop => typeof f3EditTree[prop] === 'function'));
     f3EditTree.setPostSubmit(async (dataEdit, datas) => {
-        console.log('Data yang diedit:', dataEdit);
         try {
             const response = await fetch('/families/save', {
                 method: 'POST',
@@ -124,7 +123,7 @@ const createChart = (data) => {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrfToken
                 },
-                body: JSON.stringify({ families: dataEdit }), // kirim semua data tree
+                body: JSON.stringify({ node: dataEdit, tree: datas }), // kirim semua data tree
             });
             const result = await response.json();
             if (!response.ok) {
@@ -137,28 +136,33 @@ const createChart = (data) => {
         }
     });
 
-    f3EditTree.setOnDelete(async (dataHapus, datas) => {
-        console.log('Data yang dihapus:', dataHapus.id);
-        try {
-            const response = await fetch('/families/delete', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken
-                },
-                body: JSON.stringify({ id: dataHapus.id }), // kirim semua data tree
-            });
-            const result = await response.json();
-            if (!response.ok) {
-                console.error('Gagal menyimpan data keluarga:', result);
-                return;
-            }
-            console.log('Data keluarga berhasil disimpan:', result.message);
-            f3Chart.updateTree();
-        } catch (err) {
-            console.error('Error saat menyimpan data keluarga:', err);
-        }
-    })
+    f3EditTree.setOnDelete(async (datum, deletePerson, postSubmit) => {
+      console.log('Menghapus:', datum.id);
+      try {
+          const response = await fetch('/families/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken
+          },
+          body: JSON.stringify({ id: datum.id })
+          });
+          const result = await response.json();
+          if (!response.ok) {
+          console.error('Gagal menghapus:', result);
+          return;
+          }
+          console.log('Berhasil dihapus:', result.message);
+          // Hapus node dari chart secara lokal
+          deletePerson();
+          // Opsional: fetch data terbaru dari server jika ingin update seluruh chart
+          const fetchResponse = await fetch('/families');
+          const updatedData = await fetchResponse.json();
+          postSubmit(updatedData); // update chart dengan data baru
+      } catch (err) {
+          console.error('Error saat menghapus:', err);
+      }
+    });
     // console.log(Object.getOwnPropertyNames(Object.getPrototypeOf(f3EditTree)).filter(prop => typeof f3EditTree[prop] === 'function'));
     f3Chart.updateTree({ initial: true })
 }
